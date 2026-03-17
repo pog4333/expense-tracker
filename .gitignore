@@ -1,0 +1,39 @@
+# ============================================================
+# .gitignore — commit this file, ignore everything below
+# ============================================================
+
+# --- SECRETS (never commit these) ---
+.env
+.env.local
+.env.production
+.env.*
+!.env.example        # the example template IS safe to commit
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# --- Editor / OS ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Logs & temp ---
+*.log
+*.tmp
+/tmp/
+
+# --- PWA / frontend build output ---
+/static/dist/
+/static/.cache/
