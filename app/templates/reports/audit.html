@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>User</th><th>Action</th><th>Record</th></tr></thead>
+      <tbody>
+        {% for l in logs %}
+        <tr>
+          <td class="text-mono text-muted" style="font-size:11px">{{ l.changed_at[:19] }}</td>
+          <td style="font-size:13px">{{ l.profiles.display_name if l.profiles else '—' }}</td>
+          <td>
+            {% if l.action == 'INSERT' %}<span class="badge badge-green">insert</span>
+            {% elif l.action == 'UPDATE' %}<span class="badge badge-amber">update</span>
+            {% elif l.action == 'DELETE' %}<span class="badge badge-red">delete</span>{% endif %}
+          </td>
+          <td class="text-mono text-muted" style="font-size:11px">{{ l.record_id }}</td>
+        </tr>
+        {% else %}<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No audit entries yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

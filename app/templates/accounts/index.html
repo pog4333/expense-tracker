@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Accounts & Buckets{% endblock %}
+{% block page_title %}Accounts & Buckets{% endblock %}
+{% block content %}
+{% if request.query_params.get('error') %}<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>{% endif %}
+{% if balance_check and not balance_check.is_balanced %}<div class="alert alert-danger">⚠ {{ balance_check.message }}</div>{% endif %}
+<div class="grid grid-2">
+  <div>
+    <div class="flex-between mb-16">
+      <h2 style="font-family:var(--mono);font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Accounts</h2>
+      <button onclick="openModal('add-account')" class="btn btn-primary btn-sm">+ Account</button>
+    </div>
+    {% for a in accounts %}
+    <div class="card mb-8" style="padding:14px 16px">
+      <div class="flex-between">
+        <div>
+          <div style="font-weight:500;font-size:13px">{{ a.name }}</div>
+          <div class="text-muted" style="font-size:11px;font-family:var(--mono)">{{ a.type }}{% if not a.is_active %} · <span class="text-red">inactive</span>{% endif %}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="amount {% if a.balance < 0 %}amount-expense{% else %}amount-income{% endif %}" style="font-size:15px">${{ "%.2f"|format(a.balance) }}</div>
+          <div class="text-muted" style="font-size:11px">initial: ${{ "%.2f"|format(a.initial_balance) }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div>
+    <div class="flex-between mb-16">
+      <h2 style="font-family:var(--mono);font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Buckets</h2>
+      <button onclick="openModal('add-bucket')" class="btn btn-primary btn-sm">+ Bucket</button>
+    </div>
+    {% for b in buckets %}
+    <div class="card mb-8" style="padding:14px 16px">
+      <div class="flex-between">
+        <div style="font-weight:500;font-size:13px">{{ b.name }}</div>
+        <div class="amount amount-income" style="font-size:15px">${{ "%.2f"|format(b.balance) }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card mt-24">
+  <div class="card-title">Salary allocation rules</div>
+  <form method="post" action="/accounts/allocations/save">
+    <div class="grid grid-3" style="gap:12px;margin-bottom:16px">
+      {% for a in allocations %}
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="hidden" name="bucket_id" value="{{ a.bucket_id }}">
+        <span style="font-size:13px;flex:1">{{ a.buckets.name }}</span>
+        <input type="number" name="percentage" step="0.01" min="0" max="100" value="{{ a.percentage }}" class="form-control" style="width:80px">
+        <span class="text-muted" style="font-size:13px">%</span>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    <span class="text-muted" style="font-size:12px;margin-left:12px">Must sum to exactly 100%</span>
+  </form>
+</div>
+
+<div class="card mt-16">
+  <div class="flex-between mb-16">
+    <div class="card-title" style="margin-bottom:0">Savings goals</div>
+    <button onclick="openModal('add-goal')" class="btn btn-ghost btn-sm">+ Goal</button>
+  </div>
+  {% for g in goals %}
+  <div style="margin-bottom:16px">
+    <div class="flex-between mb-4">
+      <div><span style="font-size:13px;font-weight:500">{{ g.name }}</span><span class="text-muted" style="font-size:12px;margin-left:8px">in {{ g.bucket_name }}</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="text-mono text-muted" style="font-size:12px">{{ g.pct_complete }}%</span>
+        {% if not g.is_achieved %}<form method="post" action="/accounts/goals/{{ g.id }}/achieve"><button type="submit" class="btn btn-success btn-sm">✓</button></form>
+        {% else %}<span class="badge badge-green">achieved</span>{% endif %}
+      </div>
+    </div>
+    <div class="progress"><div class="progress-bar {% if g.pct_complete >= 100 %}green{% elif g.pct_complete >= 50 %}amber{% else %}blue{% endif %}" style="width:{{ [g.pct_complete,100]|min }}%"></div></div>
+    <div class="text-muted mt-4" style="font-size:11px;font-family:var(--mono)">${{ "%.0f"|format(g.saved_amount) }} / ${{ "%.0f"|format(g.target_amount) }}{% if g.target_date %} · {{ g.target_date }}{% endif %}</div>
+  </div>
+  {% else %}<div class="text-muted" style="font-size:13px">No goals yet.</div>{% endfor %}
+</div>
+
+<div class="modal-overlay" id="add-account"><div class="modal">
+  <div class="modal-title">Add account</div>
+  <form method="post" action="/accounts/add">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" name="name" class="form-control" required placeholder="e.g. Chase Checking"></div>
+    <div class="form-group"><label class="form-label">Type</label><select name="type" class="form-control" required>{% for t in account_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Initial balance ($)</label><input type="number" name="initial_balance" step="0.01" class="form-control" value="0"></div>
+    <div class="form-group"><label class="form-label">Credit limit (cards only)</label><input type="number" name="credit_limit" step="0.01" class="form-control" placeholder="Leave blank if not a credit card"></div>
+    <div class="modal-actions"><button type="button" onclick="closeModal('add-account')" class="btn btn-ghost">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+  </form>
+</div></div>
+
+<div class="modal-overlay" id="add-bucket"><div class="modal">
+  <div class="modal-title">Add bucket</div>
+  <form method="post" action="/accounts/buckets/add">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" name="name" class="form-control" required placeholder="e.g. Emergency Fund"></div>
+    <div class="form-group"><label class="form-label">Starting balance ($)</label><input type="number" name="balance" step="0.01" class="form-control" value="0"></div>
+    <div class="modal-actions"><button type="button" onclick="closeModal('add-bucket')" class="btn btn-ghost">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+  </form>
+</div></div>
+
+<div class="modal-overlay" id="add-goal"><div class="modal">
+  <div class="modal-title">Add savings goal</div>
+  <form method="post" action="/accounts/goals/add">
+    <div class="form-group"><label class="form-label">Name</label><input type="text" name="name" class="form-control" required placeholder="e.g. Emergency fund"></div>
+    <div class="form-group"><label class="form-label">Bucket</label><select name="bucket_id" class="form-control" required>{% for b in buckets %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select></div>
+    <div class="form-group"><label class="form-label">Target amount ($)</label><input type="number" name="target_amount" step="0.01" class="form-control" required></div>
+    <div class="form-group"><label class="form-label">Target date (optional)</label><input type="date" name="target_date" class="form-control"></div>
+    <div class="modal-actions"><button type="button" onclick="closeModal('add-goal')" class="btn btn-ghost">Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+  </form>
+</div></div>
+{% endblock %}

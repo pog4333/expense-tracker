@@ -1,0 +1,128 @@
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from app.auth import login_required
+from app.database import get_db
+from decimal import Decimal
+
+router = APIRouter(prefix="/accounts")
+templates = Jinja2Templates(directory="app/templates")
+ACCOUNT_TYPES = ["checking", "savings", "credit_card", "debit_card"]
+
+
+@router.get("/", response_class=HTMLResponse)
+@login_required
+async def accounts_page(request: Request):
+    db = get_db()
+    accounts = db.table("accounts").select("*").order("name").execute()
+    buckets  = db.table("buckets").select("*").order("sort_order").execute()
+    goals    = db.table("v_savings_goals").select("*").execute()
+    alloc    = db.table("allocation_rules").select("*,buckets(name)").execute()
+    balance  = db.rpc("get_balance_check", {}).execute()
+    return templates.TemplateResponse("accounts/index.html", {
+        "request": request, "user": request.state.user,
+        "accounts": accounts.data, "buckets": buckets.data,
+        "goals": goals.data, "allocations": alloc.data,
+        "balance_check": balance.data[0] if balance.data else None,
+        "account_types": ACCOUNT_TYPES,
+    })
+
+
+@router.post("/add")
+@login_required
+async def add_account(
+    request: Request,
+    name: str              = Form(...),
+    type: str              = Form(...),
+    initial_balance: str   = Form("0"),
+    credit_limit: str      = Form(""),
+    linked_account_id: str = Form(""),
+):
+    db  = get_db()
+    bal = Decimal(initial_balance or "0")
+    db.table("accounts").insert({
+        "name": name.strip(), "type": type,
+        "balance": str(bal), "initial_balance": str(bal),
+        "credit_limit": str(Decimal(credit_limit)) if credit_limit else None,
+        "linked_account_id": linked_account_id or None,
+    }).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/{account_id}/edit")
+@login_required
+async def edit_account(
+    request: Request, account_id: str,
+    name: str         = Form(...),
+    credit_limit: str = Form(""),
+    is_active: bool   = Form(True),
+):
+    get_db().table("accounts").update({
+        "name": name.strip(),
+        "credit_limit": str(Decimal(credit_limit)) if credit_limit else None,
+        "is_active": is_active,
+    }).eq("id", account_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/buckets/add")
+@login_required
+async def add_bucket(request: Request, name: str = Form(...), balance: str = Form("0")):
+    db = get_db()
+    existing = db.table("buckets").select("sort_order").order("sort_order", desc=True).limit(1).execute()
+    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 1
+    db.table("buckets").insert({
+        "name": name.strip(), "balance": str(Decimal(balance or "0")), "sort_order": next_order,
+    }).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/buckets/{bucket_id}/edit")
+@login_required
+async def edit_bucket(
+    request: Request, bucket_id: str,
+    name: str       = Form(...),
+    is_active: bool = Form(True),
+):
+    get_db().table("buckets").update({"name": name.strip(), "is_active": is_active}).eq("id", bucket_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/allocations/save")
+@login_required
+async def save_allocations(request: Request):
+    db   = get_db()
+    form = await request.form()
+    bucket_ids  = form.getlist("bucket_id")
+    percentages = form.getlist("percentage")
+    total = sum(Decimal(p) for p in percentages)
+    if total != Decimal("100"):
+        return RedirectResponse(url=f"/accounts/?error=Allocations+must+sum+to+100+%28got+{total}%25%29", status_code=302)
+    db.table("allocation_rules").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+    rules = [{"bucket_id": bid, "percentage": str(Decimal(pct))} for bid, pct in zip(bucket_ids, percentages) if Decimal(pct) > 0]
+    if rules:
+        db.table("allocation_rules").insert(rules).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/goals/add")
+@login_required
+async def add_goal(
+    request: Request,
+    bucket_id: str     = Form(...),
+    name: str          = Form(...),
+    target_amount: str = Form(...),
+    target_date: str   = Form(""),
+):
+    get_db().table("savings_goals").insert({
+        "bucket_id": bucket_id, "name": name.strip(),
+        "target_amount": str(Decimal(target_amount)), "target_date": target_date or None,
+    }).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/goals/{goal_id}/achieve")
+@login_required
+async def mark_goal_achieved(request: Request, goal_id: str):
+    get_db().table("savings_goals").update({"is_achieved": True}).eq("id", goal_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)

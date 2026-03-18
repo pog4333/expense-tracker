@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Expenses{% endblock %} — Track</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0f172a;--bg2:#1e293b;--bg3:#273449;--border:#334155;
+      --text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent2:#0ea5e9;
+      --green:#4ade80;--red:#f87171;--amber:#fbbf24;
+      --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+      --sidebar-w:220px;--radius:6px;
+    }
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;font-size:14px;line-height:1.6}
+    .sidebar{width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform 0.2s}
+    .sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:13px;font-weight:500;color:var(--accent);letter-spacing:.05em}
+    .sidebar-logo span{color:var(--muted)}
+    .sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+    .nav-section{padding:16px 16px 4px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;border-left:2px solid transparent;transition:all .15s}
+    .nav-item:hover{color:var(--text);background:var(--bg3)}
+    .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(56,189,248,.06)}
+    .nav-item .icon{font-size:15px;width:18px;text-align:center}
+    .sidebar-footer{padding:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+    .sidebar-footer strong{color:var(--text);display:block;margin-bottom:6px}
+    .sidebar-footer a{color:var(--muted);text-decoration:none;font-size:12px}
+    .sidebar-footer a:hover{color:var(--red)}
+    .main{margin-left:var(--sidebar-w);flex:1;min-height:100vh;display:flex;flex-direction:column}
+    .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 28px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+    .topbar-title{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text)}
+    .topbar-actions{display:flex;gap:8px;align-items:center}
+    .page-content{padding:28px;flex:1;max-width:1200px}
+    .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+    .card-title{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;border:none;text-decoration:none;transition:all .15s;white-space:nowrap}
+    .btn-primary{background:var(--accent2);color:#fff}.btn-primary:hover{background:var(--accent)}
+    .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+    .btn-danger{background:transparent;color:var(--red);border:1px solid var(--red)}.btn-danger:hover{background:var(--red);color:#fff}
+    .btn-success{background:transparent;color:var(--green);border:1px solid var(--green)}.btn-success:hover{background:var(--green);color:#000}
+    .btn-amber{background:transparent;color:var(--amber);border:1px solid var(--amber)}.btn-amber:hover{background:var(--amber);color:#000}
+    .btn-sm{padding:4px 10px;font-size:12px}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+    .form-control{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:14px;padding:8px 12px;outline:none;transition:border-color .15s}
+    .form-control:focus{border-color:var(--accent)}
+    .form-control option{background:var(--bg2)}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;border-collapse:collapse}
+    th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+    td{padding:10px 12px;border-bottom:1px solid rgba(51,65,85,.5);font-size:13px}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:var(--bg3)}
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-family:var(--mono);font-size:11px;font-weight:500}
+    .badge-green{background:rgba(74,222,128,.12);color:var(--green)}
+    .badge-red{background:rgba(248,113,113,.12);color:var(--red)}
+    .badge-amber{background:rgba(251,191,36,.12);color:var(--amber)}
+    .badge-blue{background:rgba(56,189,248,.12);color:var(--accent)}
+    .badge-muted{background:var(--bg3);color:var(--muted)}
+    .alert{padding:12px 16px;border-radius:var(--radius);font-size:13px;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+    .alert-warning{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:var(--amber)}
+    .alert-danger{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red)}
+    .alert-success{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:var(--green)}
+    .alert-info{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);color:var(--accent)}
+    .grid{display:grid;gap:16px}
+    .grid-2{grid-template-columns:repeat(2,1fr)}
+    .grid-3{grid-template-columns:repeat(3,1fr)}
+    .grid-4{grid-template-columns:repeat(4,1fr)}
+    .stat-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+    .stat-value{font-family:var(--mono);font-size:24px;font-weight:500;color:var(--text)}
+    .stat-value.green{color:var(--green)}.stat-value.red{color:var(--red)}
+    .stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .amount{font-family:var(--mono)}
+    .amount-expense{color:var(--red)}.amount-income{color:var(--green)}.amount-transfer{color:var(--accent)}
+    .progress{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+    .progress-bar{height:100%;border-radius:2px;transition:width .3s}
+    .progress-bar.green{background:var(--green)}.progress-bar.amber{background:var(--amber)}.progress-bar.red{background:var(--red)}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:480px;margin:16px}
+    .modal-title{font-family:var(--mono);font-size:13px;font-weight:500;margin-bottom:20px;color:var(--text)}
+    .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+    .hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px}
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+      .main{margin-left:0}.hamburger{display:block}
+      .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+      .page-content{padding:16px}.topbar{padding:0 16px}
+    }
+    .text-muted{color:var(--muted)}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-amber{color:var(--amber)}.text-mono{font-family:var(--mono)}
+    .mt-4{margin-top:4px}.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+    .mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}.mb-24{margin-bottom:24px}
+    .flex{display:flex}.flex-between{display:flex;justify-content:space-between;align-items:center}
+    .gap-8{gap:8px}.gap-12{gap:12px}.hidden{display:none}
+    .w-full{width:100%}
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">track<span>/expenses</span></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Overview</div>
+    <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}"><span class="icon">◈</span> Dashboard</a>
+    <div class="nav-section">Money</div>
+    <a href="/transactions/" class="nav-item {% if '/transactions' in request.url.path and 'transfer' not in request.url.path %}active{% endif %}"><span class="icon">↕</span> Transactions</a>
+    <a href="/transactions/transfer" class="nav-item {% if 'transfer' in request.url.path %}active{% endif %}"><span class="icon">⇄</span> Transfer</a>
+    <a href="/accounts/" class="nav-item {% if '/accounts' in request.url.path %}active{% endif %}"><span class="icon">▣</span> Accounts &amp; Buckets</a>
+    <div class="nav-section">Insights</div>
+    <a href="/reports/" class="nav-item {% if '/reports' in request.url.path and 'audit' not in request.url.path %}active{% endif %}"><span class="icon">◎</span> Reports</a>
+    <a href="/reports/audit" class="nav-item {% if 'audit' in request.url.path %}active{% endif %}"><span class="icon">≡</span> Audit Log</a>
+    <div class="nav-section">System</div>
+    <a href="/backup/" class="nav-item {% if '/backup' in request.url.path %}active{% endif %}"><span class="icon">⊙</span> Backup &amp; Restore</a>
+  </nav>
+  <div class="sidebar-footer">
+    {% if request.state is defined and request.state.user is defined %}<strong>{{ request.state.user.display_name }}</strong>{% endif %}
+    <a href="/logout">Sign out</a>
+  </div>
+</aside>
+<div class="main">
+  <header class="topbar">
+    <div class="flex gap-8" style="align-items:center">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <span class="topbar-title">{% block page_title %}{% endblock %}</span>
+    </div>
+    <div class="topbar-actions">
+      {% block topbar_actions %}{% endblock %}
+      <a href="/transactions/add" class="btn btn-primary btn-sm">+ Add</a>
+    </div>
+  </header>
+  <div class="page-content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+<div id="overlay" onclick="toggleSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99"></div>
+<script>
+function toggleSidebar(){const s=document.getElementById('sidebar'),o=document.getElementById('overlay');s.classList.toggle('open');o.style.display=s.classList.contains('open')?'block':'none'}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+document.querySelectorAll('.alert').forEach(el=>{setTimeout(()=>el.style.opacity='0',5000);el.style.transition='opacity 0.5s'});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

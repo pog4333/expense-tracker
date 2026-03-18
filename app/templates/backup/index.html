@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Backup & Restore{% endblock %}
+{% block page_title %}Backup & Restore{% endblock %}
+{% block content %}
+{% if request.query_params.get('success') %}<div class="alert alert-success">✓ {{ request.query_params.get('success') }}</div>{% endif %}
+{% if request.query_params.get('error') %}<div class="alert alert-danger">✗ {{ request.query_params.get('error') }}</div>{% endif %}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-title">Export backup</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Downloads a .zip with transactions.csv, accounts.csv, and buckets.csv. Keep this somewhere safe.</p>
+    <a href="/reports/export/csv" class="btn btn-primary">↓ Download backup</a>
+  </div>
+  <div class="card">
+    <div class="card-title">Restore from backup</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Upload a .zip previously exported from this app. <strong class="text-red">All-or-nothing</strong> — if any row fails, nothing is imported.</p>
+    <form method="post" action="/backup/import" enctype="multipart/form-data">
+      <div class="form-group">
+        <input type="file" name="file" accept=".zip" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-amber" onclick="return confirm('This will overwrite existing data. Continue?')">↑ Restore from zip</button>
+    </form>
+  </div>
+</div>
+<div class="card mt-16">
+  <div class="card-title">Import history</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>File</th><th>By</th><th>Status</th><th>Rows</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td class="text-mono text-muted" style="font-size:11px">{{ b.started_at[:19] }}</td>
+          <td style="font-size:13px">{{ b.filename or '—' }}</td>
+          <td style="font-size:12px">{{ b.profiles.display_name if b.profiles else '—' }}</td>
+          <td>
+            {% if b.status == 'success' %}<span class="badge badge-green">success</span>
+            {% elif b.status == 'rolled_back' %}<span class="badge badge-red">failed</span>
+            {% else %}<span class="badge badge-muted">{{ b.status }}</span>{% endif %}
+          </td>
+          <td class="text-mono text-muted" style="font-size:12px">{{ b.imported_rows or 0 }}</td>
+          <td class="text-muted" style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ b.error_detail or '' }}</td>
+        </tr>
+        {% else %}<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No imports yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

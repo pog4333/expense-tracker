@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Split transaction{% endblock %}
+{% block page_title %}Split transaction{% endblock %}
+{% block content %}
+<div style="max-width:600px">
+  <div class="alert alert-info">
+    Original: <strong>{{ tx.merchant_name }}</strong> —
+    <span class="text-mono">${{ "%.2f"|format(tx.amount) }}</span>.
+    Split amounts must add up to exactly this.
+  </div>
+  <div class="card">
+    <form method="post" action="/transactions/{{ tx.id }}/split" id="split-form">
+      <div id="split-rows">
+        {% for i in range(2) %}
+        <div class="split-row" style="padding:12px 0;border-bottom:1px solid var(--border)">
+          <div class="grid grid-2" style="gap:8px">
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">Amount ($)</label>
+              <input type="number" name="amount" step="0.01" class="form-control split-amount" required oninput="checkTotal()">
+            </div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label class="form-label">Bucket</label>
+              <select name="bucket_id" class="form-control" required>
+                {% for b in buckets %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Category</label>
+            <select name="category_id" class="form-control" required>
+              {% for parent in categories %}
+              <optgroup label="{{ parent.name }}">
+                {% for sub in parent.subcategories %}<option value="{{ sub.id }}">{{ sub.name }}</option>{% endfor %}
+              </optgroup>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group mt-8" style="margin-bottom:0">
+            <input type="text" name="note" class="form-control" placeholder="Note (optional)">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="flex-between mt-16">
+        <div id="total-check" style="font-family:var(--mono);font-size:13px;color:var(--muted)">Total: $0.00 / ${{ "%.2f"|format(tx.amount) }}</div>
+        <button type="button" onclick="addRow()" class="btn btn-ghost btn-sm">+ Add row</button>
+      </div>
+      <div class="flex gap-8 mt-16">
+        <button type="submit" id="submit-btn" class="btn btn-primary" disabled>Save split</button>
+        <a href="/transactions/" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const original = {{ tx.amount }};
+function checkTotal() {
+  const amounts = [...document.querySelectorAll('.split-amount')].map(i => parseFloat(i.value)||0);
+  const total   = amounts.reduce((a,b) => a+b, 0);
+  const el      = document.getElementById('total-check');
+  const ok      = Math.abs(total - original) < 0.01;
+  el.textContent = `Total: $${total.toFixed(2)} / $${original.toFixed(2)}`;
+  el.style.color  = ok ? 'var(--green)' : 'var(--red)';
+  document.getElementById('submit-btn').disabled = !ok;
+}
+function addRow() {
+  const tmpl = document.querySelector('.split-row').cloneNode(true);
+  tmpl.querySelectorAll('input').forEach(i => i.value = '');
+  tmpl.querySelectorAll('.split-amount').forEach(i => i.addEventListener('input', checkTotal));
+  document.getElementById('split-rows').appendChild(tmpl);
+}
+</script>
+{% endblock %}

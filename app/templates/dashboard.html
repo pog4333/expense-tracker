@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+{% if not is_balanced %}
+<div class="alert alert-danger">⚠ {{ balance_check.message }}</div>
+{% endif %}
+
+{% if pending_refunds %}
+<div class="alert alert-amber">
+  ⏳ {{ pending_refunds|length }} pending refund{{ 's' if pending_refunds|length > 1 }} — 
+  <a href="/transactions/" style="color:inherit;text-decoration:underline">view</a>
+</div>
+{% endif %}
+
+{% for w in budget_warnings %}
+<div class="alert alert-warning">
+  ⚡ {{ w.category_name }}: {{ w.pct_used }}% of monthly limit used (${{ "%.0f"|format(w.spent_this_month) }} / ${{ "%.0f"|format(w.monthly_limit) }})
+</div>
+{% endfor %}
+
+<!-- Top stats -->
+<div class="grid grid-4 mb-24">
+  <div class="card">
+    <div class="stat-label">Total assets</div>
+    <div class="stat-value green">${{ "%.2f"|format(total_assets) }}</div>
+    <div class="stat-sub">across {{ accounts|length }} accounts</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">CC balance</div>
+    <div class="stat-value {% if total_cc_debt > 0 %}red{% endif %}">${{ "%.2f"|format(total_cc_debt) }}</div>
+    <div class="stat-sub">credit card debt</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Spent this month</div>
+    <div class="stat-value">${{ "%.2f"|format(total_spent_month) }}</div>
+    <div class="stat-sub">all buckets</div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Balance check</div>
+    <div class="stat-value {% if is_balanced %}green{% else %}red{% endif %}">
+      {{ "OK" if is_balanced else "!" }}
+    </div>
+    <div class="stat-sub">accounts vs buckets</div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+
+  <!-- Accounts -->
+  <div class="card">
+    <div class="flex-between mb-16">
+      <div class="card-title" style="margin-bottom:0">Accounts</div>
+      <a href="/accounts/" class="btn btn-ghost btn-sm">Manage</a>
+    </div>
+    {% for a in accounts %}
+    <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:13px;font-weight:500">{{ a.name }}</div>
+        <div class="text-muted" style="font-size:11px;font-family:var(--mono)">{{ a.type }}</div>
+      </div>
+      <div class="amount {% if a.balance < 0 %}amount-expense{% else %}amount-income{% endif %}" style="font-size:14px">
+        ${{ "%.2f"|format(a.balance) }}
+      </div>
+    </div>
+    {% else %}
+    <div class="text-muted" style="font-size:13px">No accounts yet. <a href="/accounts/" style="color:var(--accent)">Add one →</a></div>
+    {% endfor %}
+  </div>
+
+  <!-- Buckets -->
+  <div class="card">
+    <div class="flex-between mb-16">
+      <div class="card-title" style="margin-bottom:0">Buckets this month</div>
+      <a href="/accounts/" class="btn btn-ghost btn-sm">Manage</a>
+    </div>
+    {% for b in current_month %}
+    <div style="margin-bottom:12px">
+      <div class="flex-between" style="margin-bottom:4px">
+        <span style="font-size:13px;font-weight:500">{{ b.bucket_name }}</span>
+        <span class="text-mono" style="font-size:12px">
+          <span class="text-red">-${{ "%.0f"|format(b.spent_this_month) }}</span>
+          <span class="text-muted"> / ${{ "%.0f"|format(b.bucket_balance) }}</span>
+        </span>
+      </div>
+      {% if b.bucket_balance > 0 %}
+      {% set pct = [[(b.spent_this_month / b.bucket_balance * 100)|round(0), 0]|max, 100]|min %}
+      <div class="progress">
+        <div class="progress-bar {% if pct > 90 %}red{% elif pct > 70 %}amber{% else %}green{% endif %}"
+             style="width:{{ pct }}%"></div>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="text-muted" style="font-size:13px">No buckets yet.</div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- Savings goals -->
+{% if goals %}
+<div class="card mt-16">
+  <div class="card-title">Savings goals</div>
+  <div class="grid grid-3">
+    {% for g in goals %}
+    <div style="padding:4px 0">
+      <div class="flex-between mb-4">
+        <span style="font-size:13px;font-weight:500">{{ g.name }}</span>
+        <span class="text-mono text-muted" style="font-size:12px">{{ g.pct_complete }}%</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar {% if g.pct_complete >= 100 %}green{% elif g.pct_complete >= 50 %}amber{% else %}blue{% endif %}"
+             style="width:{{ [g.pct_complete, 100]|min }}%"></div>
+      </div>
+      <div class="text-muted mt-4" style="font-size:11px;font-family:var(--mono)">
+        ${{ "%.0f"|format(g.saved_amount) }} / ${{ "%.0f"|format(g.target_amount) }}
+        {% if g.target_date %} · {{ g.target_date }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

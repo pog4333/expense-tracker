@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Error{% endblock %}
+{% block page_title %}500{% endblock %}
+{% block content %}
+<div style="text-align:center;padding:80px 0">
+  <div style="font-family:var(--mono);font-size:48px;color:var(--border)">500</div>
+  <div style="color:var(--muted);margin-top:8px">Something went wrong</div>
+  <a href="/" class="btn btn-ghost mt-16" style="display:inline-flex">← Back to dashboard</a>
+</div>
+{% endblock %}

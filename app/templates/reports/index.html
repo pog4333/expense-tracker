@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block topbar_actions %}
+<a href="/reports/export/csv" class="btn btn-ghost btn-sm">↓ Export CSV</a>
+{% endblock %}
+{% block content %}
+<div class="grid grid-2 mb-24">
+  <div class="card">
+    <div class="card-title">Subscriptions detected</div>
+    {% for s in subscriptions %}
+    <div class="flex-between" style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:13px;font-weight:500">{{ s.merchant_name }}</div><div class="text-muted" style="font-size:11px">{{ s.occurrences }}x · first {{ s.first_seen }}</div></div>
+      <div class="text-mono" style="font-size:13px">${{ "%.2f"|format(s.avg_amount) }}/mo</div>
+    </div>
+    {% else %}<div class="text-muted" style="font-size:13px">No subscriptions detected yet.</div>{% endfor %}
+  </div>
+  <div class="card">
+    <div class="card-title">Spending forecast (next month)</div>
+    {% for f in forecast[:8] %}
+    <div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px">{{ f.parent_category_name }} / {{ f.category_name }}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="text-mono" style="font-size:13px">${{ "%.0f"|format(f.avg_monthly_spend) }}</span>
+        {% if f.is_likely_recurring %}<span class="badge badge-blue">recurring</span>{% endif %}
+      </div>
+    </div>
+    {% else %}<div class="text-muted" style="font-size:13px">Not enough data yet (need 2+ months).</div>{% endfor %}
+  </div>
+</div>
+
+<div class="card mb-16">
+  <div class="card-title">Monthly spending by category</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Month</th><th>Category</th><th>Subcategory</th><th>Total</th><th>Transactions</th></tr></thead>
+      <tbody>
+        {% for r in monthly_cat %}
+        <tr>
+          <td class="text-mono text-muted" style="font-size:12px">{{ r.month }}</td>
+          <td class="text-muted" style="font-size:12px">{{ r.parent_category_name }}</td>
+          <td style="font-size:13px">{{ r.category_name }}</td>
+          <td class="text-mono amount-expense" style="font-size:13px">${{ "%.2f"|format(r.total_spent) }}</td>
+          <td class="text-muted" style="font-size:12px">{{ r.transaction_count }}</td>
+        </tr>
+        {% else %}<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No data yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Year-over-year</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Year</th><th>Month</th><th>Total spent</th><th>Transactions</th></tr></thead>
+      <tbody>
+        {% for r in yoy %}
+        <tr>
+          <td class="text-mono" style="font-size:13px">{{ r.year }}</td>
+          <td style="font-size:13px">{{ r.month_name }}</td>
+          <td class="text-mono amount-expense" style="font-size:13px">${{ "%.2f"|format(r.total_spent) }}</td>
+          <td class="text-muted" style="font-size:12px">{{ r.transaction_count }}</td>
+        </tr>
+        {% else %}<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No data yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

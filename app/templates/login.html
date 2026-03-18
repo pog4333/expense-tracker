@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — Track</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#0f172a;--bg2:#1e293b;--bg3:#273449;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--accent:#38bdf8;--accent2:#0ea5e9;--red:#f87171;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--radius:6px}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .login-box{width:100%;max-width:360px}
+    .logo{font-family:var(--mono);font-size:20px;font-weight:500;color:var(--accent);margin-bottom:4px}
+    .logo span{color:var(--muted)}
+    .tagline{font-size:13px;color:var(--muted);margin-bottom:32px}
+    .form-group{margin-bottom:16px}
+    .form-label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+    .form-control{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:14px;padding:10px 14px;outline:none;transition:border-color .15s}
+    .form-control:focus{border-color:var(--accent)}
+    .btn{width:100%;padding:10px;border-radius:var(--radius);font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;border:none;background:var(--accent2);color:#fff;transition:background .15s;margin-top:8px}
+    .btn:hover{background:var(--accent)}
+    .error{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--red);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:16px}
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="logo">track<span>/expenses</span></div>
+    <div class="tagline">Personal finance tracker</div>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-control" type="email" name="email" required autofocus autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-control" type="password" name="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn">Sign in</button>
+    </form>
+  </div>
+</body>
+</html>
