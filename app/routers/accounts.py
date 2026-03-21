@@ -17,7 +17,17 @@ async def accounts_page(request: Request):
     accounts = db.table("accounts").select("*").order("name").execute()
     buckets  = db.table("buckets").select("*").order("sort_order").execute()
     goals    = db.table("v_savings_goals").select("*").execute()
-    alloc    = db.table("allocation_rules").select("*,buckets(name)").execute()
+    # Build allocation list: all active buckets, with existing % or 0 for new ones
+    all_buckets_r = db.table("buckets").select("id,name").eq("is_active", True).order("sort_order").execute()
+    existing_alloc = db.table("allocation_rules").select("*").execute()
+    alloc_map = {a["bucket_id"]: a["percentage"] for a in existing_alloc.data}
+    alloc_data = [
+        {"bucket_id": b["id"], "percentage": alloc_map.get(b["id"], 0), "buckets": {"name": b["name"]}}
+        for b in all_buckets_r.data
+    ]
+    class _AllocResult:
+        def __init__(self, data): self.data = data
+    alloc = _AllocResult(alloc_data)
     balance  = db.rpc("get_balance_check", {}).execute()
 
     # Count transactions per account and bucket for delete safety check
