@@ -19,12 +19,26 @@ async def accounts_page(request: Request):
     goals    = db.table("v_savings_goals").select("*").execute()
     alloc    = db.table("allocation_rules").select("*,buckets(name)").execute()
     balance  = db.rpc("get_balance_check", {}).execute()
+
+    # Count transactions per account and bucket for delete safety check
+    acc_tx_counts = {}
+    for a in accounts.data:
+        r = db.table("transactions").select("id", count="exact").eq("account_id", a["id"]).execute()
+        acc_tx_counts[a["id"]] = r.count or 0
+
+    bkt_tx_counts = {}
+    for b in buckets.data:
+        r = db.table("transactions").select("id", count="exact").eq("bucket_id", b["id"]).execute()
+        bkt_tx_counts[b["id"]] = r.count or 0
+
     return templates.TemplateResponse("accounts/index.html", {
         "request": request, "user": request.state.user,
         "accounts": accounts.data, "buckets": buckets.data,
         "goals": goals.data, "allocations": alloc.data,
         "balance_check": balance.data[0] if balance.data else None,
         "account_types": ACCOUNT_TYPES,
+        "acc_tx_counts": acc_tx_counts,
+        "bkt_tx_counts": bkt_tx_counts,
     })
 
 
@@ -125,4 +139,61 @@ async def add_goal(
 @login_required
 async def mark_goal_achieved(request: Request, goal_id: str):
     get_db().table("savings_goals").update({"is_achieved": True}).eq("id", goal_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/{account_id}/deactivate")
+@login_required
+async def deactivate_account(request: Request, account_id: str):
+    get_db().table("accounts").update({"is_active": False}).eq("id", account_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/{account_id}/reactivate")
+@login_required
+async def reactivate_account(request: Request, account_id: str):
+    get_db().table("accounts").update({"is_active": True}).eq("id", account_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/{account_id}/delete")
+@login_required
+async def delete_account(request: Request, account_id: str):
+    db = get_db()
+    # Safety check — only delete if no transactions
+    tx = db.table("transactions").select("id").eq("account_id", account_id).limit(1).execute()
+    if tx.data:
+        return RedirectResponse(url="/accounts/?error=Cannot+delete+account+with+transactions", status_code=302)
+    acc = db.table("accounts").select("balance").eq("id", account_id).single().execute()
+    if acc.data and float(acc.data["balance"]) != 0:
+        return RedirectResponse(url="/accounts/?error=Cannot+delete+account+with+non-zero+balance", status_code=302)
+    db.table("accounts").delete().eq("id", account_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/buckets/{bucket_id}/deactivate")
+@login_required
+async def deactivate_bucket(request: Request, bucket_id: str):
+    get_db().table("buckets").update({"is_active": False}).eq("id", bucket_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/buckets/{bucket_id}/reactivate")
+@login_required
+async def reactivate_bucket(request: Request, bucket_id: str):
+    get_db().table("buckets").update({"is_active": True}).eq("id", bucket_id).execute()
+    return RedirectResponse(url="/accounts/", status_code=302)
+
+
+@router.post("/buckets/{bucket_id}/delete")
+@login_required
+async def delete_bucket(request: Request, bucket_id: str):
+    db = get_db()
+    tx = db.table("transactions").select("id").eq("bucket_id", bucket_id).limit(1).execute()
+    if tx.data:
+        return RedirectResponse(url="/accounts/?error=Cannot+delete+bucket+with+transactions", status_code=302)
+    bkt = db.table("buckets").select("balance").eq("id", bucket_id).single().execute()
+    if bkt.data and float(bkt.data["balance"]) != 0:
+        return RedirectResponse(url="/accounts/?error=Cannot+delete+bucket+with+non-zero+balance", status_code=302)
+    db.table("buckets").delete().eq("id", bucket_id).execute()
     return RedirectResponse(url="/accounts/", status_code=302)
