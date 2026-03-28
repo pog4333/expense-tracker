@@ -38,7 +38,7 @@ async def login_submit(
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
         key=COOKIE_NAME,
-        value=create_session_cookie(user["user_id"], user["access_token"]),
+        value=create_session_cookie(user["user_id"], user["access_token"], user["household_id"]),
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         samesite="lax",

@@ -10,8 +10,8 @@ COOKIE_NAME = "session"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 days
 
 
-def create_session_cookie(user_id: str, access_token: str) -> str:
-    return _signer.dumps({"user_id": user_id, "access_token": access_token})
+def create_session_cookie(user_id: str, access_token: str, household_id: str = "") -> str:
+    return _signer.dumps({"user_id": user_id, "access_token": access_token, "household_id": household_id})
 
 
 def decode_session_cookie(cookie_value: str) -> dict | None:
