@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from app.auth import login_user, create_session_cookie, COOKIE_NAME, COOKIE_MAX_AGE
+from app.auth import login_user, create_session_cookie, decode_session_cookie, COOKIE_NAME, COOKIE_MAX_AGE
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -9,9 +9,12 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request, error: str = ""):
-    # Already logged in? Go to dashboard
-    if request.cookies.get(COOKIE_NAME):
-        return RedirectResponse(url="/", status_code=302)
+    # Only redirect to dashboard if cookie is valid AND has household_id
+    cookie = request.cookies.get(COOKIE_NAME)
+    if cookie:
+        session = decode_session_cookie(cookie)
+        if session and session.get("household_id"):
+            return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("login.html", {
         "request": request,
         "error": error
@@ -21,8 +24,8 @@ async def login_page(request: Request, error: str = ""):
 @router.post("/login")
 async def login_submit(
     request: Request,
-    email: str = Form(...),
-    password: str = Form(...)
+    email: str    = Form(...),
+    password: str = Form(...),
 ):
     try:
         user = login_user(email, password)
@@ -37,9 +40,9 @@ async def login_submit(
         key=COOKIE_NAME,
         value=create_session_cookie(user["user_id"], user["access_token"]),
         max_age=COOKIE_MAX_AGE,
-        httponly=True,   # JS cannot read this cookie
+        httponly=True,
         samesite="lax",
-        secure=False     # set to True in production (HTTPS)
+        secure=True,   # HTTPS on Render
     )
     return response
 
