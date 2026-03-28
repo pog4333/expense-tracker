@@ -116,6 +116,7 @@
     <a href="/reports/audit" class="nav-item {% if 'audit' in request.url.path %}active{% endif %}"><span class="icon">≡</span> Audit Log</a>
     <div class="nav-section">System</div>
     <a href="/backup/" class="nav-item {% if '/backup' in request.url.path %}active{% endif %}"><span class="icon">⊙</span> Backup &amp; Restore</a>
+    <a href="/help/" class="nav-item {% if '/help' in request.url.path %}active{% endif %}"><span class="icon">?</span> Help</a>
   </nav>
   <div class="sidebar-footer">
     {% if request.state is defined and request.state.user is defined %}<strong>{{ request.state.user.display_name }}</strong>{% endif %}

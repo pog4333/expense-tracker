@@ -27,24 +27,30 @@ def login_user(email: str, password: str) -> dict:
             "email": email,
             "password": password
         })
-        user = response.user
+        user    = response.user
         session = response.session
         if not user or not session:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         profile = (
             service_client.table("profiles")
-            .select("display_name")
+            .select("display_name, household_id")
             .eq("id", user.id)
             .single()
             .execute()
         )
-        display_name = profile.data.get("display_name", email) if profile.data else email
+
+        if not profile.data:
+            raise HTTPException(status_code=401, detail="Profile not found — contact your admin")
+
+        if not profile.data.get("household_id"):
+            raise HTTPException(status_code=401, detail="No household assigned — contact your admin")
 
         return {
-            "user_id": user.id,
-            "email": user.email,
-            "display_name": display_name,
+            "user_id":      user.id,
+            "email":        user.email,
+            "display_name": profile.data.get("display_name", email),
+            "household_id": profile.data["household_id"],
             "access_token": session.access_token,
         }
     except HTTPException:
@@ -65,6 +71,8 @@ def login_required(func):
     async def wrapper(request: Request, *args, **kwargs):
         user = get_current_user(request)
         if not user:
+            return RedirectResponse(url="/login", status_code=302)
+        if not user.get("household_id"):
             return RedirectResponse(url="/login", status_code=302)
         request.state.user = user
         return await func(request, *args, **kwargs)

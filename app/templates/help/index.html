@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Help{% endblock %}
+{% block page_title %}How to use this app{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block head %}
+<style>
+.step-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+.step-btn { padding:6px 14px; border-radius:20px; font-size:12px; font-family:var(--mono); cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--muted); transition:all .15s; }
+.step-btn.active { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+.step-panel { display:none; }
+.step-panel.active { display:block; }
+.step-header { font-family:var(--mono); font-size:22px; font-weight:500; color:var(--text); margin-bottom:8px; }
+.step-sub { font-size:14px; color:var(--muted); margin-bottom:24px; line-height:1.7; }
+.tip { background:rgba(56,189,248,.08); border:1px solid rgba(56,189,248,.2); border-radius:var(--radius); padding:12px 16px; font-size:13px; color:var(--accent); margin-bottom:16px; }
+.tip strong { color:var(--text); }
+.do-item { display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.do-item:last-child { border-bottom:none; }
+.do-icon { font-size:16px; margin-top:1px; flex-shrink:0; }
+.nav-row { display:flex; justify-content:space-between; margin-top:28px; }
+.screen { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:16px; font-size:13px; }
+.screen-label { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.kbd { display:inline-block; background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-family:var(--mono); font-size:11px; color:var(--text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:680px">
+
+  <div class="step-nav" id="step-nav">
+    <button class="step-btn active" onclick="goTo(0)">1 · Overview</button>
+    <button class="step-btn" onclick="goTo(1)">2 · Accounts</button>
+    <button class="step-btn" onclick="goTo(2)">3 · Buckets</button>
+    <button class="step-btn" onclick="goTo(3)">4 · Add expense</button>
+    <button class="step-btn" onclick="goTo(4)">5 · Salary</button>
+    <button class="step-btn" onclick="goTo(5)">6 · Transfers</button>
+    <button class="step-btn" onclick="goTo(6)">7 · Refunds</button>
+    <button class="step-btn" onclick="goTo(7)">8 · Reports</button>
+    <button class="step-btn" onclick="goTo(8)">9 · Backup</button>
+  </div>
+
+  <!-- 1: Overview -->
+  <div class="step-panel active" id="panel-0">
+    <div class="step-header">Welcome to Track/Expenses</div>
+    <div class="step-sub">This app helps you and your partner track every dollar — where it is, where it went, and where it's going.</div>
+
+    <div class="tip"><strong>The core idea:</strong> Your money lives in two places at once — <em>accounts</em> (where it physically is) and <em>buckets</em> (what it's earmarked for). The total in your accounts should always equal the total in your buckets.</div>
+
+    <div class="card mt-16">
+      <div class="card-title">The three things you'll do most</div>
+      <div class="do-item"><span class="do-icon">↕</span><div><strong>Add an expense</strong> — tap "+ Add" in the top right. Takes about 10 seconds once merchant memory kicks in.</div></div>
+      <div class="do-item"><span class="do-icon">◈</span><div><strong>Check the dashboard</strong> — see your balances, how much you've spent this month per bucket, and any warnings.</div></div>
+      <div class="do-item"><span class="do-icon">◎</span><div><strong>Review reports</strong> — monthly breakdown, subscriptions, year-over-year. Desktop-focused.</div></div>
+    </div>
+    <div class="nav-row"><span></span><button class="btn btn-primary" onclick="goTo(1)">Next: Accounts →</button></div>
+  </div>
+
+  <!-- 2: Accounts -->
+  <div class="step-panel" id="panel-1">
+    <div class="step-header">Accounts</div>
+    <div class="step-sub">An account is a real bank account or card. Set each one up with its current balance — exactly what your bank app shows today.</div>
+
+    <div class="screen">
+      <div class="screen-label">Accounts & Buckets page</div>
+      <div class="do-item"><span class="do-icon">+</span><div>Click <strong>+ Account</strong> → enter name, type, and current balance.</div></div>
+      <div class="do-item"><span class="do-icon">$</span><div>The balance you enter is your starting point. Every transaction after this will adjust it automatically.</div></div>
+      <div class="do-item"><span class="do-icon">💳</span><div><strong>Credit cards:</strong> enter your current balance as a negative number if you owe money (e.g. <span class="kbd">-450.00</span>). The card balance drops when you swipe, and resets when you pay the bill.</div></div>
+    </div>
+
+    <div class="tip"><strong>Adjust balance</strong> is there for when things don't add up. It requires a reason and creates an audit trail — use it whenever your balance drifts from reality.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(0)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(2)">Next: Buckets →</button>
+    </div>
+  </div>
+
+  <!-- 3: Buckets -->
+  <div class="step-panel" id="panel-2">
+    <div class="step-header">Buckets</div>
+    <div class="step-sub">A bucket is a category of intention — not a bank account, but a mental slot for your money. "Essential expenses", "Fun", "Savings" etc.</div>
+
+    <div class="card">
+      <div class="card-title">Key rule</div>
+      <div style="font-size:13px;line-height:1.8">
+        <strong>Sum of all account balances = Sum of all bucket balances</strong><br>
+        <span class="text-muted">The dashboard shows a red warning if this ever breaks. Use "Adjust balance" to fix it.</span>
+      </div>
+    </div>
+
+    <div class="screen mt-16">
+      <div class="screen-label">Setting up buckets</div>
+      <div class="do-item"><span class="do-icon">▣</span><div>Default buckets (Essential, Fun, Savings etc.) are already created. Rename them to fit your life.</div></div>
+      <div class="do-item"><span class="do-icon">%</span><div>Set <strong>Salary allocation rules</strong> — when you enter a salary deposit, the app automatically splits it across your buckets by these percentages. Must add to 100%.</div></div>
+      <div class="do-item"><span class="do-icon">◎</span><div>Add <strong>Savings goals</strong> to track progress toward a target (e.g. "Emergency fund — $10,000").</div></div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(3)">Next: Adding expenses →</button>
+    </div>
+  </div>
+
+  <!-- 4: Add expense -->
+  <div class="step-panel" id="panel-3">
+    <div class="step-header">Adding an expense</div>
+    <div class="step-sub">Tap "+ Add" from anywhere. The form remembers merchants you've used before and fills in the details automatically.</div>
+
+    <div class="screen">
+      <div class="screen-label">Add expense form</div>
+      <div class="do-item"><span class="do-icon">1</span><div><strong>Start typing the merchant name</strong> — suggestions appear after 2 characters. Tap one to auto-fill category, account, and bucket.</div></div>
+      <div class="do-item"><span class="do-icon">2</span><div><strong>Enter the amount</strong> — always positive. The app knows it's an expense.</div></div>
+      <div class="do-item"><span class="do-icon">3</span><div><strong>Check the date</strong> — defaults to today. Change it for backdated entries.</div></div>
+      <div class="do-item"><span class="do-icon">4</span><div><strong>Confirm account, bucket, category</strong> — auto-filled from merchant memory, but you can change any of them.</div></div>
+      <div class="do-item"><span class="do-icon">5</span><div><strong>Save</strong> — the account and bucket balances update instantly.</div></div>
+    </div>
+
+    <div class="tip"><strong>Split transactions:</strong> After saving, open the transaction and tap "Split" to divide it across multiple buckets or categories. The amounts must add up exactly to the original.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(4)">Next: Salary →</button>
+    </div>
+  </div>
+
+  <!-- 5: Salary -->
+  <div class="step-panel" id="panel-4">
+    <div class="step-header">Adding a salary</div>
+    <div class="step-sub">Salary is special — it doesn't just credit your account, it also distributes the money across your buckets automatically.</div>
+
+    <div class="screen">
+      <div class="screen-label">How to enter salary</div>
+      <div class="do-item"><span class="do-icon">1</span><div>Tap <strong>+ Add</strong> as usual.</div></div>
+      <div class="do-item"><span class="do-icon">2</span><div>Enter merchant name (e.g. "Employer"), amount, and the account it was deposited into.</div></div>
+      <div class="do-item"><span class="do-icon">3</span><div>Check the <strong>"This is a salary deposit"</strong> checkbox at the bottom.</div></div>
+      <div class="do-item"><span class="do-icon">4</span><div>Save — the account balance goes up by the full amount, and each bucket gets its allocated percentage automatically.</div></div>
+    </div>
+
+    <div class="tip"><strong>Example:</strong> $5,000 salary with 40% Essential, 20% Short Term Savings, 20% Long Term, 15% Fun, 5% Charity → Essential gets $2,000, Short Term gets $1,000, and so on.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(5)">Next: Transfers →</button>
+    </div>
+  </div>
+
+  <!-- 6: Transfers -->
+  <div class="step-panel" id="panel-5">
+    <div class="step-header">Transfers</div>
+    <div class="step-sub">Use Transfer to move money between accounts or between buckets — without it counting as income or expense.</div>
+
+    <div class="card">
+      <div class="card-title">Three types of transfer</div>
+      <div class="do-item"><span class="do-icon">⇄</span><div><strong>Between accounts</strong> — moving money from savings to checking, for example.</div></div>
+      <div class="do-item"><span class="do-icon">💳</span><div><strong>Pay credit card bill</strong> — this is how you pay off your card. Money leaves your bank account and zeroes out the card balance.</div></div>
+      <div class="do-item"><span class="do-icon">▣</span><div><strong>Between buckets</strong> — reallocating money without moving it physically. E.g. moving $200 from Fun to Short Term Savings.</div></div>
+    </div>
+
+    <div class="tip"><strong>Credit card rule:</strong> When you swipe your card, the expense debits your bucket immediately. When you pay the bill, use a credit card transfer — this moves the money from your bank account to the card. Never enter a card payment as an expense.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(6)">Next: Refunds →</button>
+    </div>
+  </div>
+
+  <!-- 7: Refunds -->
+  <div class="step-panel" id="panel-6">
+    <div class="step-header">Refunds</div>
+    <div class="step-sub">When you return something or request a refund, the app tracks it in two stages — requested and confirmed.</div>
+
+    <div class="screen">
+      <div class="screen-label">How refunds work</div>
+      <div class="do-item"><span class="do-icon">1</span><div>Find the original expense in Transactions.</div></div>
+      <div class="do-item"><span class="do-icon">2</span><div>Tap <strong>Refund</strong> → <strong>Mark pending</strong> — this flags it as awaiting a refund. The money hasn't come back yet.</div></div>
+      <div class="do-item"><span class="do-icon">3</span><div>When the money actually arrives in your account, tap <strong>Confirm</strong> — enter the date and amount received.</div></div>
+      <div class="do-item"><span class="do-icon">4</span><div>The app creates an income transaction that credits both the account and the original bucket the money came from.</div></div>
+    </div>
+
+    <div class="tip"><strong>Pending refunds</strong> appear as a warning banner on the dashboard so you never forget to follow up.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(5)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(7)">Next: Reports →</button>
+    </div>
+  </div>
+
+  <!-- 8: Reports -->
+  <div class="step-panel" id="panel-7">
+    <div class="step-header">Reports</div>
+    <div class="step-sub">Reports are best on desktop. They give you a full picture of your spending patterns over time.</div>
+
+    <div class="card">
+      <div class="card-title">What's in reports</div>
+      <div class="do-item"><span class="do-icon">◎</span><div><strong>Monthly breakdown</strong> — spending by category, every month.</div></div>
+      <div class="do-item"><span class="do-icon">↻</span><div><strong>Subscriptions detected</strong> — the app automatically spots recurring charges with a consistent amount.</div></div>
+      <div class="do-item"><span class="do-icon">→</span><div><strong>Forecast</strong> — estimated next month's spending based on your last 6 months of history.</div></div>
+      <div class="do-item"><span class="do-icon">↑</span><div><strong>Year-over-year</strong> — compare this month to the same month last year.</div></div>
+      <div class="do-item"><span class="do-icon">↓</span><div><strong>Export CSV</strong> — downloads a zip with all your data. Use this for your weekly backup.</div></div>
+      <div class="do-item"><span class="do-icon">≡</span><div><strong>Audit log</strong> — every insert, edit, and delete, with timestamps. Hidden from normal use.</div></div>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(6)">← Back</button>
+      <button class="btn btn-primary" onclick="goTo(8)">Next: Backup →</button>
+    </div>
+  </div>
+
+  <!-- 9: Backup -->
+  <div class="step-panel" id="panel-8">
+    <div class="step-header">Backup & Restore</div>
+    <div class="step-sub">Your data lives in Supabase which takes its own daily backups. But you can also download your own copy anytime.</div>
+
+    <div class="screen">
+      <div class="screen-label">Backup</div>
+      <div class="do-item"><span class="do-icon">↓</span><div>Go to <strong>Backup & Restore</strong> → <strong>Download backup</strong> → saves a .zip with all your transactions, accounts, and buckets as CSV files.</div></div>
+      <div class="do-item"><span class="do-icon">📧</span><div>A weekly backup is emailed to you automatically once email is configured.</div></div>
+    </div>
+
+    <div class="screen">
+      <div class="screen-label">Restore</div>
+      <div class="do-item"><span class="do-icon">↑</span><div>Upload a .zip previously downloaded from this app.</div></div>
+      <div class="do-item"><span class="do-icon">⚠</span><div><strong>All-or-nothing</strong> — if any row in the file fails, nothing is imported. You'll see a clear error message explaining what went wrong.</div></div>
+      <div class="do-item"><span class="do-icon">≡</span><div>Every restore attempt is logged in the import history table, whether it succeeded or failed.</div></div>
+    </div>
+
+    <div class="tip"><strong>You're all set.</strong> Start by adding your accounts with real balances, set your bucket allocations, then enter your first transaction.</div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goTo(7)">← Back</button>
+      <a href="/" class="btn btn-primary">Go to dashboard →</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const panels = document.querySelectorAll('.step-panel');
+const btns   = document.querySelectorAll('.step-btn');
+let current  = 0;
+
+function goTo(i) {
+  panels[current].classList.remove('active');
+  btns[current].classList.remove('active');
+  current = i;
+  panels[current].classList.add('active');
+  btns[current].classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+{% endblock %}

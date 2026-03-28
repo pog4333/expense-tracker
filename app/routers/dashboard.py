@@ -11,13 +11,15 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/", response_class=HTMLResponse)
 @login_required
 async def dashboard(request: Request):
-    db = get_db()
-    current_month = db.table("v_current_month").select("*").execute()
-    accounts      = db.table("accounts").select("*").eq("is_active", True).order("name").execute()
-    pending_refunds = db.table("v_pending_refunds").select("*").execute()
-    budget_status = db.table("v_budget_limit_status").select("*").execute()
-    goals         = db.table("v_savings_goals").select("*").eq("is_achieved", False).execute()
-    balance_check = db.rpc("get_balance_check", {}).execute()
+    db  = get_db()
+    hid = request.state.user["household_id"]
+
+    current_month   = db.table("v_current_month").select("*").execute()          # filtered by RLS
+    accounts        = db.table("accounts").select("*").eq("is_active", True).eq("household_id", hid).order("name").execute()
+    pending_refunds = db.table("v_pending_refunds").select("*").execute()         # filtered by RLS
+    budget_status   = db.table("v_budget_limit_status").select("*").execute()     # filtered by RLS
+    goals           = db.table("v_savings_goals").select("*").eq("is_achieved", False).execute()  # filtered by RLS
+    balance_check   = db.rpc("get_balance_check", {}).execute()
 
     total_assets = sum(
         a["balance"] for a in accounts.data
