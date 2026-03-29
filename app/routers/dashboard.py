@@ -14,11 +14,11 @@ async def dashboard(request: Request):
     db  = get_db()
     hid = request.state.user["household_id"]
 
-    current_month   = db.table("v_current_month").select("*").execute()          # filtered by RLS
+    current_month   = db.rpc("get_current_month",       {"p_household_id": hid}).execute()
+    pending_refunds = db.rpc("get_pending_refunds",     {"p_household_id": hid}).execute()
+    budget_status   = db.rpc("get_budget_limit_status", {"p_household_id": hid}).execute()
+    goals           = db.rpc("get_savings_goals",       {"p_household_id": hid}).execute()
     accounts        = db.table("accounts").select("*").eq("is_active", True).eq("household_id", hid).order("name").execute()
-    pending_refunds = db.table("v_pending_refunds").select("*").execute()         # filtered by RLS
-    budget_status   = db.table("v_budget_limit_status").select("*").execute()     # filtered by RLS
-    goals           = db.table("v_savings_goals").select("*").eq("is_achieved", False).execute()  # filtered by RLS
     balance_check   = db.rpc("get_balance_check", {}).execute()
 
     total_assets = sum(
@@ -38,7 +38,7 @@ async def dashboard(request: Request):
         "accounts": accounts.data,
         "pending_refunds": pending_refunds.data,
         "budget_warnings": [b for b in budget_status.data if b["pct_used"] >= 80],
-        "goals": goals.data,
+        "goals": [g for g in goals.data if not g["is_achieved"]],
         "total_assets": total_assets,
         "total_cc_debt": total_cc_debt,
         "total_spent_month": total_spent_month,

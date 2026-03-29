@@ -14,17 +14,20 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/", response_class=HTMLResponse)
 @login_required
 async def reports_page(request: Request):
-    db = get_db()
-    monthly_cat   = db.table("v_monthly_by_category").select("*").order("month", desc=True).limit(120).execute()
-    yoy           = db.table("v_year_over_year").select("*").execute()
-    subscriptions = db.table("v_subscriptions").select("*").eq("likely_subscription", True).execute()
-    forecast      = db.rpc("get_spending_forecast", {"p_months_back": 6}).execute()
-    daily         = db.table("v_daily_spending").select("*").execute()
+    db  = get_db()
+    hid = request.state.user["household_id"]
+
+    monthly_cat   = db.rpc("get_monthly_by_category", {"p_household_id": hid}).execute()
+    yoy           = db.rpc("get_year_over_year",       {"p_household_id": hid}).execute()
+    subscriptions = db.rpc("get_subscriptions",        {"p_household_id": hid}).execute()
+    forecast      = db.rpc("get_spending_forecast",    {"p_months_back": 6}).execute()
+    daily         = db.table("transactions").select("date, amount").eq("type", "expense").eq("household_id", hid).gte("date", str(date.today().replace(day=1))).execute()
+
     return templates.TemplateResponse("reports/index.html", {
         "request": request, "user": request.state.user,
         "monthly_cat": monthly_cat.data,
         "yoy": yoy.data,
-        "subscriptions": subscriptions.data,
+        "subscriptions": [s for s in subscriptions.data if s["likely_subscription"]],
         "forecast": forecast.data,
         "daily": daily.data,
     })

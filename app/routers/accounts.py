@@ -18,7 +18,7 @@ async def accounts_page(request: Request):
 
     accounts = db.table("accounts").select("*").eq("household_id", hid).order("name").execute()
     buckets  = db.table("buckets").select("*").eq("household_id", hid).order("sort_order").execute()
-    goals    = db.table("v_savings_goals").select("*").execute()  # filtered by RLS
+    goals = db.rpc("get_savings_goals", {"p_household_id": hid}).execute().data
     balance  = db.rpc("get_balance_check", {}).execute()
 
     # Build allocation list: all active buckets for this household
@@ -44,7 +44,7 @@ async def accounts_page(request: Request):
     return templates.TemplateResponse("accounts/index.html", {
         "request": request, "user": request.state.user,
         "accounts": accounts.data, "buckets": buckets.data,
-        "goals": goals.data, "allocations": alloc_data,
+        "goals": goals, "allocations": alloc_data,
         "balance_check": balance.data[0] if balance.data else None,
         "account_types": ACCOUNT_TYPES,
         "acc_tx_counts": acc_tx_counts,
