@@ -111,6 +111,7 @@
     <a href="/transactions/" class="nav-item {% if '/transactions' in request.url.path and 'transfer' not in request.url.path %}active{% endif %}"><span class="icon">↕</span> Transactions</a>
     <a href="/transactions/transfer" class="nav-item {% if 'transfer' in request.url.path %}active{% endif %}"><span class="icon">⇄</span> Transfer</a>
     <a href="/accounts/" class="nav-item {% if '/accounts' in request.url.path %}active{% endif %}"><span class="icon">▣</span> Accounts &amp; Buckets</a>
+    <a href="/categories/" class="nav-item {% if '/categories' in request.url.path %}active{% endif %}"><span class="icon">≋</span> Categories</a>
     <div class="nav-section">Insights</div>
     <a href="/reports/" class="nav-item {% if '/reports' in request.url.path and 'audit' not in request.url.path %}active{% endif %}"><span class="icon">◎</span> Reports</a>
     <a href="/reports/audit" class="nav-item {% if 'audit' in request.url.path %}active{% endif %}"><span class="icon">≡</span> Audit Log</a>
