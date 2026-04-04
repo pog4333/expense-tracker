@@ -10,10 +10,16 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def _get_form_data(db, household_id: str):
-    """Fetch accounts, buckets, categories for the current household only."""
-    accounts = db.table("accounts").select("id,name,type").eq("is_active", True).eq("household_id", household_id).order("name").execute()
-    buckets  = db.table("buckets").select("id,name").eq("is_active", True).eq("household_id", household_id).order("sort_order").execute()
-    all_cats = db.table("categories").select("id,name,parent_id").eq("household_id", household_id).order("sort_order").execute()
+    """Accounts, buckets, categories for the current household."""
+    accounts = db.table("accounts").select("id,name,type") \
+        .eq("is_active", True).eq("household_id", household_id).order("name").execute()
+    buckets = db.table("buckets").select("id,name") \
+        .eq("is_active", True).eq("household_id", household_id).order("sort_order").execute()
+    # Try household-filtered categories first, fall back to unfiltered
+    all_cats = db.table("categories").select("id,name,parent_id") \
+        .eq("household_id", household_id).order("sort_order").execute()
+    if not all_cats.data:
+        all_cats = db.table("categories").select("id,name,parent_id").order("sort_order").execute()
     parents  = [c for c in all_cats.data if c["parent_id"] is None]
     children = [c for c in all_cats.data if c["parent_id"] is not None]
     for p in parents:
@@ -49,8 +55,12 @@ async def add_transaction_page(request: Request, merchant: str = ""):
     accounts, buckets, categories = _get_form_data(db, hid)
     autofill = None
     if merchant:
-        m = db.table("v_merchant_suggestions").select("*").eq("household_id", hid).ilike("name", merchant).limit(1).execute()
-        autofill = m.data[0] if m.data else None
+        try:
+            m = db.table("v_merchant_suggestions").select("*") \
+                .eq("household_id", hid).ilike("name", merchant).limit(1).execute()
+            autofill = m.data[0] if m.data else None
+        except Exception:
+            autofill = None
     return templates.TemplateResponse("transactions/add.html", {
         "request": request, "user": request.state.user,
         "accounts": accounts, "buckets": buckets,
@@ -68,7 +78,7 @@ async def add_transaction(
     amount: str        = Form(...),
     account_id: str    = Form(...),
     bucket_id: str     = Form(...),
-    category_id: str   = Form(...),
+    category_id: str   = Form(""),
     note: str          = Form(""),
     is_salary: bool    = Form(False),
 ):
@@ -83,7 +93,7 @@ async def add_transaction(
         "amount": str(Decimal(amount)),
         "account_id": account_id,
         "bucket_id": bucket_id,
-        "category_id": category_id,
+        "category_id": category_id if category_id else None,
         "note": note.strip() or None,
         "is_salary": is_salary,
         "entered_by": user["user_id"],
@@ -107,8 +117,8 @@ async def add_transaction(
 async def edit_transaction_page(request: Request, tx_id: str):
     db  = get_db()
     hid = request.state.user["household_id"]
-    # Verify transaction belongs to this household
-    result = db.table("v_transactions").select("*").eq("id", tx_id).eq("household_id", hid).single().execute()
+    result = db.table("v_transactions").select("*") \
+        .eq("id", tx_id).eq("household_id", hid).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Not found")
     accounts, buckets, categories = _get_form_data(db, hid)
@@ -128,19 +138,18 @@ async def edit_transaction(
     amount: str        = Form(...),
     account_id: str    = Form(...),
     bucket_id: str     = Form(...),
-    category_id: str   = Form(...),
+    category_id: str   = Form(""),
     note: str          = Form(""),
 ):
     db  = get_db()
     hid = request.state.user["household_id"]
-    # Security: only update if it belongs to this household
     db.table("transactions").update({
         "date": date,
         "merchant_name": merchant_name.strip(),
         "amount": str(Decimal(amount)),
         "account_id": account_id,
         "bucket_id": bucket_id,
-        "category_id": category_id,
+        "category_id": category_id if category_id else None,
         "note": note.strip() or None,
     }).eq("id", tx_id).eq("household_id", hid).execute()
     return RedirectResponse(url="/transactions/", status_code=302)
@@ -149,18 +158,18 @@ async def edit_transaction(
 @router.post("/{tx_id}/delete")
 @login_required
 async def delete_transaction(request: Request, tx_id: str):
-    db  = get_db()
     hid = request.state.user["household_id"]
-    db.table("transactions").delete().eq("id", tx_id).eq("household_id", hid).execute()
+    get_db().table("transactions").delete() \
+        .eq("id", tx_id).eq("household_id", hid).execute()
     return RedirectResponse(url="/transactions/", status_code=302)
 
 
 @router.post("/{tx_id}/refund/request")
 @login_required
 async def request_refund(request: Request, tx_id: str):
-    db  = get_db()
     hid = request.state.user["household_id"]
-    db.table("transactions").update({"refund_status": "pending"}).eq("id", tx_id).eq("household_id", hid).execute()
+    get_db().table("transactions").update({"refund_status": "pending"}) \
+        .eq("id", tx_id).eq("household_id", hid).execute()
     return RedirectResponse(url="/transactions/", status_code=302)
 
 
@@ -173,25 +182,25 @@ async def confirm_refund(
 ):
     db   = get_db()
     hid  = request.state.user["household_id"]
-    orig = db.table("transactions").select("*").eq("id", tx_id).eq("household_id", hid).single().execute().data
+    orig = db.table("transactions").select("*") \
+        .eq("id", tx_id).eq("household_id", hid).single().execute().data
     if not orig:
         raise HTTPException(status_code=404, detail="Not found")
-
-    # Credit both the account AND the original bucket (pending fix applied)
     db.table("transactions").insert({
         "type": "income",
         "date": date,
         "merchant_name": f"Refund – {orig['merchant_name']}",
         "amount": str(Decimal(amount)),
         "account_id": orig["account_id"],
-        "bucket_id": orig["bucket_id"],   # goes back to original bucket
+        "bucket_id": orig["bucket_id"],
         "category_id": orig["category_id"],
         "refund_of_id": tx_id,
         "note": "Refund confirmed",
         "entered_by": request.state.user["user_id"],
         "household_id": hid,
     }).execute()
-    db.table("transactions").update({"refund_status": "confirmed"}).eq("id", tx_id).eq("household_id", hid).execute()
+    db.table("transactions").update({"refund_status": "confirmed"}) \
+        .eq("id", tx_id).eq("household_id", hid).execute()
     return RedirectResponse(url="/transactions/", status_code=302)
 
 
@@ -200,8 +209,10 @@ async def confirm_refund(
 async def transfer_page(request: Request):
     db  = get_db()
     hid = request.state.user["household_id"]
-    accounts = db.table("accounts").select("id,name,type").eq("is_active", True).eq("household_id", hid).order("name").execute()
-    buckets  = db.table("buckets").select("id,name").eq("is_active", True).eq("household_id", hid).order("sort_order").execute()
+    accounts = db.table("accounts").select("id,name,type") \
+        .eq("is_active", True).eq("household_id", hid).order("name").execute()
+    buckets = db.table("buckets").select("id,name") \
+        .eq("is_active", True).eq("household_id", hid).order("sort_order").execute()
     return templates.TemplateResponse("transactions/transfer.html", {
         "request": request, "user": request.state.user,
         "accounts": accounts.data, "buckets": buckets.data,
@@ -246,6 +257,11 @@ async def create_transfer(
 async def merchant_suggest(request: Request, q: str = ""):
     if len(q) < 2:
         return []
-    hid    = request.state.user["household_id"]
-    result = get_db().table("v_merchant_suggestions").select("*").eq("household_id", hid).ilike("name", f"{q}%").limit(8).execute()
-    return result.data
+    hid = request.state.user["household_id"]
+    try:
+        result = get_db().table("v_merchant_suggestions").select("*") \
+            .eq("household_id", hid).ilike("name", f"{q}%").limit(8).execute()
+        return result.data
+    except Exception:
+        # Return empty on any Supabase error — autocomplete is non-critical
+        return []
