@@ -3,10 +3,11 @@
 {% block page_title %}Categories{% endblock %}
 {% block content %}
 
-{% if request.query_params.get('error') %}<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert alert-success">✓ {{ success }}</div>{% endif %}
 
 <div class="flex-between mb-16">
-  <p class="text-muted" style="font-size:13px">Manage your spending categories and subcategories.</p>
+  <p class="text-muted" style="font-size:13px">Two-level categories. Add top-level first, then subcategories under them.</p>
   <button onclick="openModal('add-category')" class="btn btn-primary btn-sm">+ Category</button>
 </div>
 
@@ -16,9 +17,10 @@
     <div style="font-weight:500;font-size:14px">{{ cat.name }}</div>
     <div style="display:flex;gap:8px">
       <button onclick="openModal('edit-cat-{{ cat.id }}')" class="btn btn-ghost btn-sm">Rename</button>
-      <button onclick="openModal('add-sub-{{ cat.id }}')" class="btn btn-ghost btn-sm">+ Subcategory</button>
+      <button onclick="openModal('add-sub-{{ cat.id }}')" class="btn btn-ghost btn-sm">+ Sub</button>
       {% if not cat.subcategories %}
-      <form method="post" action="/categories/{{ cat.id }}/delete" onsubmit="return confirm('Delete {{ cat.name }}?')">
+      <form method="post" action="/categories/{{ cat.id }}/delete"
+            onsubmit="return confirm('Delete {{ cat.name }}? This cannot be undone.')">
         <button type="submit" class="btn btn-danger btn-sm">Delete</button>
       </form>
       {% endif %}
@@ -32,18 +34,19 @@
       <span style="font-size:13px;color:var(--muted)">{{ sub.name }}</span>
       <div style="display:flex;gap:6px">
         <button onclick="openModal('edit-cat-{{ sub.id }}')" class="btn btn-ghost btn-sm">Rename</button>
-        <form method="post" action="/categories/{{ sub.id }}/delete" onsubmit="return confirm('Delete {{ sub.name }}?')">
+        <form method="post" action="/categories/{{ sub.id }}/delete"
+              onsubmit="return confirm('Delete {{ sub.name }}?')">
           <button type="submit" class="btn btn-danger btn-sm">Delete</button>
         </form>
       </div>
     </div>
-
     <!-- Rename subcategory modal -->
     <div class="modal-overlay" id="edit-cat-{{ sub.id }}"><div class="modal">
       <div class="modal-title">Rename — {{ sub.name }}</div>
       <form method="post" action="/categories/{{ sub.id }}/edit">
         <div class="form-group"><label class="form-label">New name</label>
-        <input type="text" name="name" class="form-control" value="{{ sub.name }}" required></div>
+          <input type="text" name="name" class="form-control" value="{{ sub.name }}" required autofocus>
+        </div>
         <div class="modal-actions">
           <button type="button" onclick="closeModal('edit-cat-{{ sub.id }}')" class="btn btn-ghost">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -59,7 +62,8 @@
     <div class="modal-title">Rename — {{ cat.name }}</div>
     <form method="post" action="/categories/{{ cat.id }}/edit">
       <div class="form-group"><label class="form-label">New name</label>
-      <input type="text" name="name" class="form-control" value="{{ cat.name }}" required></div>
+        <input type="text" name="name" class="form-control" value="{{ cat.name }}" required autofocus>
+      </div>
       <div class="modal-actions">
         <button type="button" onclick="closeModal('edit-cat-{{ cat.id }}')" class="btn btn-ghost">Cancel</button>
         <button type="submit" class="btn btn-primary">Save</button>
@@ -73,7 +77,8 @@
     <form method="post" action="/categories/add">
       <input type="hidden" name="parent_id" value="{{ cat.id }}">
       <div class="form-group"><label class="form-label">Name</label>
-      <input type="text" name="name" class="form-control" required placeholder="e.g. Groceries"></div>
+        <input type="text" name="name" class="form-control" required placeholder="e.g. Groceries" autofocus>
+      </div>
       <div class="modal-actions">
         <button type="button" onclick="closeModal('add-sub-{{ cat.id }}')" class="btn btn-ghost">Cancel</button>
         <button type="submit" class="btn btn-primary">Add</button>
@@ -82,7 +87,9 @@
   </div></div>
 </div>
 {% else %}
-<div class="card" style="text-align:center;padding:40px;color:var(--muted)">No categories yet.</div>
+<div class="card" style="text-align:center;padding:40px;color:var(--muted);font-size:13px">
+  No categories yet. Add one to get started.
+</div>
 {% endfor %}
 
 <!-- Add top-level category modal -->
@@ -91,7 +98,8 @@
   <form method="post" action="/categories/add">
     <input type="hidden" name="parent_id" value="">
     <div class="form-group"><label class="form-label">Name</label>
-    <input type="text" name="name" class="form-control" required placeholder="e.g. Food"></div>
+      <input type="text" name="name" class="form-control" required placeholder="e.g. Food" autofocus>
+    </div>
     <div class="modal-actions">
       <button type="button" onclick="closeModal('add-category')" class="btn btn-ghost">Cancel</button>
       <button type="submit" class="btn btn-primary">Add</button>

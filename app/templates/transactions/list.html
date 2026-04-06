@@ -6,6 +6,54 @@
 {% endblock %}
 
 {% block content %}
+
+<!-- Filters -->
+<div class="card mb-16" style="padding:14px 16px">
+  <form method="get" action="/transactions/" class="flex gap-8" style="flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1;min-width:140px">
+      <label class="form-label">Account</label>
+      <select name="account" class="form-control" onchange="this.form.submit()">
+        <option value="">All accounts</option>
+        {% for a in accounts %}
+        <option value="{{ a.id }}" {% if filter_account == a.id %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <label class="form-label">Bucket</label>
+      <select name="bucket" class="form-control" onchange="this.form.submit()">
+        <option value="">All buckets</option>
+        {% for b in buckets %}
+        <option value="{{ b.id }}" {% if filter_bucket == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <label class="form-label">Category</label>
+      <select name="category" class="form-control" onchange="this.form.submit()">
+        <option value="">All categories</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if filter_category == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="flex:1;min-width:120px">
+      <label class="form-label">Type</label>
+      <select name="type" class="form-control" onchange="this.form.submit()">
+        <option value="">All types</option>
+        <option value="expense"  {% if filter_type == 'expense'  %}selected{% endif %}>Expense</option>
+        <option value="income"   {% if filter_type == 'income'   %}selected{% endif %}>Income</option>
+        <option value="transfer" {% if filter_type == 'transfer' %}selected{% endif %}>Transfer</option>
+      </select>
+    </div>
+    {% if filter_account or filter_bucket or filter_category or filter_type %}
+    <div style="padding-bottom:1px">
+      <a href="/transactions/" class="btn btn-ghost btn-sm">✕ Clear</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+
 <div class="card">
   <div class="table-wrap">
     <table>
@@ -18,7 +66,7 @@
       <tbody>
         {% for t in transactions %}
         <tr>
-          <td class="text-mono text-muted" style="font-size:12px">{{ t.date }}</td>
+          <td class="text-mono text-muted" style="font-size:12px;white-space:nowrap">{{ t.date }}</td>
           <td style="font-weight:500">
             {{ t.merchant_name }}
             {% if t.note %}<div class="text-muted" style="font-size:11px">{{ t.note }}</div>{% endif %}
@@ -29,7 +77,7 @@
           </td>
           <td class="text-muted" style="font-size:12px">{{ t.account_name or '—' }}</td>
           <td class="text-muted" style="font-size:12px">{{ t.bucket_name or '—' }}</td>
-          <td class="amount amount-{{ t.type }}" style="font-size:13px">
+          <td class="amount amount-{{ t.type }}" style="font-size:13px;white-space:nowrap">
             {% if t.type == 'expense' %}-{% elif t.type == 'income' %}+{% endif %}${{ "%.2f"|format(t.amount) }}
           </td>
           <td>
@@ -38,20 +86,24 @@
               {% if t.is_salary %}<span class="badge badge-green">salary</span>
               {% else %}<span class="badge badge-green">income</span>{% endif %}
             {% elif t.type == 'transfer' %}<span class="badge badge-blue">transfer</span>
-            {% elif t.type == 'split' %}<span class="badge badge-muted">split</span>{% endif %}
+            {% elif t.type == 'split' %}<span class="badge badge-muted">split</span>
+            {% elif t.type == 'adjustment' %}<span class="badge badge-amber">adjustment</span>{% endif %}
             {% if t.refund_status == 'pending' %}<span class="badge badge-amber">refund pending</span>
             {% elif t.refund_status == 'confirmed' %}<span class="badge badge-green">refunded</span>{% endif %}
           </td>
           <td>
-            <div class="flex gap-8">
+            <div class="flex gap-8" style="white-space:nowrap">
+              {% if t.type not in ('split', 'transfer', 'adjustment') %}
               <a href="/transactions/{{ t.id }}/edit" class="btn btn-ghost btn-sm">Edit</a>
+              {% endif %}
               {% if t.type == 'expense' and not t.refund_status %}
               <button onclick="openModal('refund-{{ t.id }}')" class="btn btn-amber btn-sm">Refund</button>
               {% endif %}
               {% if t.refund_status == 'pending' %}
               <button onclick="openModal('confirm-refund-{{ t.id }}')" class="btn btn-success btn-sm">Confirm</button>
               {% endif %}
-              <form method="post" action="/transactions/{{ t.id }}/delete" onsubmit="return confirm('Delete this transaction?')">
+              <form method="post" action="/transactions/{{ t.id }}/delete"
+                    onsubmit="return confirm('Delete this transaction?')">
                 <button type="submit" class="btn btn-danger btn-sm">Del</button>
               </form>
             </div>
@@ -62,7 +114,7 @@
         <div class="modal-overlay" id="refund-{{ t.id }}">
           <div class="modal">
             <div class="modal-title">Request refund — {{ t.merchant_name }}</div>
-            <p style="font-size:13px;color:var(--muted)">This will mark the transaction as having a pending refund. Confirm when the money actually arrives.</p>
+            <p style="font-size:13px;color:var(--muted)">Marks as pending. Confirm when the money arrives.</p>
             <div class="modal-actions">
               <button onclick="closeModal('refund-{{ t.id }}')" class="btn btn-ghost">Cancel</button>
               <form method="post" action="/transactions/{{ t.id }}/refund/request">
@@ -82,13 +134,13 @@
                 <input type="date" name="date" class="form-control" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Amount received</label>
+                <label class="form-label">Amount received ($)</label>
                 <input type="number" name="amount" step="0.01" class="form-control"
                        value="{{ t.amount }}" required>
               </div>
               <div class="modal-actions">
                 <button type="button" onclick="closeModal('confirm-refund-{{ t.id }}')" class="btn btn-ghost">Cancel</button>
-                <button type="submit" class="btn btn-success">Confirm refund</button>
+                <button type="submit" class="btn btn-success">Confirm</button>
               </div>
             </form>
           </div>
@@ -96,7 +148,7 @@
 
         {% else %}
         <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">
-          No transactions yet. <a href="/transactions/add" style="color:var(--accent)">Add one →</a>
+          No transactions found. <a href="/transactions/add" style="color:var(--accent)">Add one →</a>
         </td></tr>
         {% endfor %}
       </tbody>

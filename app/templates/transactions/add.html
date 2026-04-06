@@ -5,25 +5,43 @@
 {% block head %}
 <style>
 .autofill-bar{background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--accent)}
+.merchant-wrap{position:relative}
 #merchant-suggestions{position:absolute;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);width:100%;z-index:10;max-height:200px;overflow-y:auto}
 .suggestion{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)}
 .suggestion:hover{background:var(--bg3)}
 .suggestion:last-child{border-bottom:none}
-.merchant-wrap{position:relative}
+.split-row{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;position:relative}
+.split-row .remove-btn{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:2px 6px}
+.total-indicator{font-family:var(--mono);font-size:13px;padding:8px 12px;border-radius:var(--radius);margin-bottom:12px}
+.total-ok{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.total-bad{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.mode-tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--bg3);border-radius:var(--radius);padding:3px}
+.mode-tab{flex:1;padding:7px;text-align:center;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--muted);transition:all .15s}
+.mode-tab.active{background:var(--bg2);color:var(--text)}
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="max-width:560px">
-  {% if autofill %}
-  <div class="autofill-bar">⚡ Auto-filled from previous {{ autofill.name }} transaction</div>
-  {% endif %}
+<div style="max-width:600px">
+
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  {% if autofill %}<div class="autofill-bar">⚡ Auto-filled from {{ autofill.name }}</div>{% endif %}
+
+  <!-- Transaction type tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tab-expense" onclick="setMode('expense')">Expense</button>
+    <button class="mode-tab" id="tab-income" onclick="setMode('income')">Income</button>
+    <button class="mode-tab" id="tab-salary" onclick="setMode('salary')">Salary</button>
+  </div>
 
   <div class="card">
-    <form method="post" action="/transactions/add">
+    <form method="post" action="/transactions/add" id="tx-form">
+      <input type="hidden" name="tx_type" id="tx_type" value="expense">
+      <input type="hidden" name="is_salary" id="is_salary" value="false">
 
-      <div class="form-group merchant-wrap">
-        <label class="form-label">Merchant</label>
+      <!-- Common fields -->
+      <div class="merchant-wrap form-group">
+        <label class="form-label">Merchant / Description</label>
         <input type="text" name="merchant_name" id="merchant-input" class="form-control"
                value="{{ autofill.name if autofill else merchant_query }}"
                placeholder="e.g. Costco" required autocomplete="off">
@@ -33,71 +51,53 @@
       <div class="grid grid-2">
         <div class="form-group">
           <label class="form-label">Date</label>
-          <input type="date" name="date" class="form-control" required
-                 >
+          <input type="date" name="date" id="date-field" class="form-control" required>
         </div>
         <div class="form-group">
-          <label class="form-label">Amount ($)</label>
-          <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+          <label class="form-label">Total amount ($)</label>
+          <input type="number" name="amount" id="total-amount" step="0.01" min="0.01"
+                 class="form-control" required placeholder="0.00" oninput="updateTotal()">
         </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Category</label>
-        <select name="category_id" id="category-select" class="form-control" required>
+        <label class="form-label">Account</label>
+        <select name="account_id" id="account-select" class="form-control" required>
           <option value="">— select —</option>
-          {% for parent in categories %}
-          <optgroup label="{{ parent.name }}">
-            {% for sub in parent.subcategories %}
-            <option value="{{ sub.id }}"
-              {% if autofill and autofill.default_category_id == sub.id %}selected{% endif %}>
-              {{ sub.name }}
-            </option>
-            {% endfor %}
-          </optgroup>
+          {% for a in accounts %}
+          <option value="{{ a.id }}" {% if autofill and autofill.default_account_id == a.id %}selected{% endif %}>
+            {{ a.name }}
+          </option>
           {% endfor %}
         </select>
       </div>
 
-      <div class="grid grid-2">
-        <div class="form-group">
-          <label class="form-label">Account</label>
-          <select name="account_id" id="account-select" class="form-control" required>
-            <option value="">— select —</option>
-            {% for a in accounts %}
-            <option value="{{ a.id }}"
-              {% if autofill and autofill.default_account_id == a.id %}selected{% endif %}>
-              {{ a.name }}
-            </option>
-            {% endfor %}
-          </select>
+      <!-- Salary mode: auto-allocation notice -->
+      <div id="salary-notice" class="tip" style="display:none;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);border-radius:var(--radius);padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:16px">
+        ⚡ Salary will be split automatically across buckets per your allocation rules.
+      </div>
+
+      <!-- Bucket allocation (hidden for salary) -->
+      <div id="bucket-section">
+        <div class="flex-between mb-8">
+          <label class="form-label" style="margin-bottom:0">Bucket allocation</label>
+          <button type="button" onclick="addSplitRow()" class="btn btn-ghost btn-sm">+ Add bucket</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">Bucket</label>
-          <select name="bucket_id" id="bucket-select" class="form-control" required>
-            <option value="">— select —</option>
-            {% for b in buckets %}
-            <option value="{{ b.id }}"
-              {% if autofill and autofill.default_bucket_id == b.id %}selected{% endif %}>
-              {{ b.name }}
-            </option>
-            {% endfor %}
-          </select>
+
+        <div id="split-rows"></div>
+
+        <div id="total-indicator" class="total-indicator total-bad" style="display:none">
+          Split: $0.00 / $0.00
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group mt-8">
         <label class="form-label">Note (optional)</label>
         <input type="text" name="note" class="form-control" placeholder="Any extra detail">
       </div>
 
-      <div class="form-group" style="display:flex;align-items:center;gap:10px">
-        <input type="checkbox" name="is_salary" id="is-salary" value="true" style="width:16px;height:16px">
-        <label for="is-salary" style="font-size:13px;color:var(--muted);cursor:pointer">This is a salary deposit (auto-allocate to buckets)</label>
-      </div>
-
       <div class="flex gap-8 mt-16">
-        <button type="submit" class="btn btn-primary">Save transaction</button>
+        <button type="submit" id="submit-btn" class="btn btn-primary">Save</button>
         <a href="/transactions/" class="btn btn-ghost">Cancel</a>
       </div>
     </form>
@@ -107,8 +107,118 @@
 
 {% block scripts %}
 <script>
-// Set today's date default
-document.querySelector('input[name="date"]').value = new Date().toISOString().split('T')[0];
+const buckets    = {{ buckets | tojson }};
+const categories = {{ categories | tojson }};
+const autofill   = {{ (autofill | tojson) if autofill else 'null' }};
+
+// Set today
+document.getElementById('date-field').value = new Date().toISOString().split('T')[0];
+
+// Mode switching
+function setMode(mode) {
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + mode).classList.add('active');
+  document.getElementById('tx_type').value   = mode === 'salary' ? 'income' : mode;
+  document.getElementById('is_salary').value = mode === 'salary' ? 'true' : 'false';
+  document.getElementById('salary-notice').style.display  = mode === 'salary' ? 'block' : 'none';
+  document.getElementById('bucket-section').style.display = mode === 'salary' ? 'none' : 'block';
+}
+
+// Build a bucket row
+function makeBucketRow(bucketId, catId, amount) {
+  const div = document.createElement('div');
+  div.className = 'split-row';
+
+  const bucketOpts = buckets.map(b =>
+    `<option value="${b.id}" ${b.id === bucketId ? 'selected' : ''}>${b.name}</option>`
+  ).join('');
+
+  // Build category options with optgroups
+  let catOpts = '<option value="">— category —</option>';
+  categories.forEach(p => {
+    if (p.subcategories && p.subcategories.length) {
+      catOpts += `<optgroup label="${p.name}">`;
+      p.subcategories.forEach(s => {
+        catOpts += `<option value="${s.id}" ${s.id === catId ? 'selected' : ''}>${s.name}</option>`;
+      });
+      catOpts += '</optgroup>';
+    }
+  });
+
+  div.innerHTML = `
+    <button type="button" class="remove-btn" onclick="removeSplitRow(this)">×</button>
+    <div class="grid grid-2" style="gap:8px;margin-bottom:8px">
+      <div>
+        <label class="form-label">Bucket</label>
+        <select name="bucket_id" class="form-control" required onchange="updateTotal()">${bucketOpts}</select>
+      </div>
+      <div>
+        <label class="form-label">Amount ($)</label>
+        <input type="number" name="split_amount" step="0.01" min="0.01" class="form-control split-amount"
+               value="${amount || ''}" placeholder="0.00" oninput="updateTotal()" required>
+      </div>
+    </div>
+    <div class="grid grid-2" style="gap:8px">
+      <div>
+        <label class="form-label">Category</label>
+        <select name="category_id" class="form-control">${catOpts}</select>
+      </div>
+      <div>
+        <label class="form-label">Note</label>
+        <input type="text" name="split_note" class="form-control" placeholder="Optional">
+      </div>
+    </div>`;
+  return div;
+}
+
+function addSplitRow(bucketId, catId, amount) {
+  const container = document.getElementById('split-rows');
+  container.appendChild(makeBucketRow(bucketId || (buckets[0] ? buckets[0].id : ''), catId, amount));
+  updateTotal();
+  updateIndicator();
+}
+
+function removeSplitRow(btn) {
+  btn.closest('.split-row').remove();
+  updateTotal();
+  updateIndicator();
+}
+
+function updateTotal() {
+  const totalEl  = document.getElementById('total-amount');
+  const total    = parseFloat(totalEl.value) || 0;
+  const amounts  = [...document.querySelectorAll('.split-amount')].map(i => parseFloat(i.value) || 0);
+  const splitSum = amounts.reduce((a, b) => a + b, 0);
+  const rows     = document.querySelectorAll('.split-row').length;
+
+  const indEl = document.getElementById('total-indicator');
+  if (rows > 1) {
+    indEl.style.display = 'block';
+    const ok = Math.abs(splitSum - total) < 0.01;
+    indEl.className = 'total-indicator ' + (ok ? 'total-ok' : 'total-bad');
+    indEl.textContent = `Split: $${splitSum.toFixed(2)} / $${total.toFixed(2)}${ok ? ' ✓' : ' — must match total'}`;
+    document.getElementById('submit-btn').disabled = !ok;
+  } else {
+    indEl.style.display = 'none';
+    document.getElementById('submit-btn').disabled = false;
+    // Auto-fill single row amount
+    if (rows === 1) {
+      const amtInput = document.querySelector('.split-amount');
+      if (amtInput && total > 0) amtInput.value = total.toFixed(2);
+    }
+  }
+}
+
+function updateIndicator() {
+  updateTotal();
+}
+
+// Initialize with one row (autofill if available)
+addSplitRow(
+  autofill ? autofill.default_bucket_id : (buckets[0] ? buckets[0].id : ''),
+  autofill ? autofill.default_category_id : '',
+  ''
+);
 
 // Merchant autocomplete
 const input = document.getElementById('merchant-input');
@@ -120,24 +230,32 @@ input.addEventListener('input', () => {
   const q = input.value.trim();
   if (q.length < 2) { box.innerHTML = ''; return; }
   timer = setTimeout(async () => {
-    const res  = await fetch(`/transactions/merchant-suggest?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
-    box.innerHTML = data.map(m => `
-      <div class="suggestion" onclick="applyAutofill(${JSON.stringify(m).replace(/"/g, '&quot;')})">
-        <strong>${m.name}</strong>
-        <span style="color:var(--muted);font-size:11px;margin-left:8px">${m.category_name||''} · ${m.bucket_name||''}</span>
-      </div>`).join('');
+    try {
+      const res  = await fetch(`/transactions/merchant-suggest?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      box.innerHTML = data.map(m => `
+        <div class="suggestion" onclick='applyAutofill(${JSON.stringify(m)})'>
+          <strong>${m.name}</strong>
+          <span style="color:var(--muted);font-size:11px;margin-left:8px">${m.category_name || ''} · ${m.bucket_name || ''}</span>
+        </div>`).join('');
+    } catch(e) { box.innerHTML = ''; }
   }, 200);
 });
 
 function applyAutofill(m) {
   input.value = m.name;
   box.innerHTML = '';
-  if (m.default_category_id) document.getElementById('category-select').value = m.default_category_id;
-  if (m.default_account_id)  document.getElementById('account-select').value  = m.default_account_id;
-  if (m.default_bucket_id)   document.getElementById('bucket-select').value   = m.default_bucket_id;
+  if (m.default_account_id) document.getElementById('account-select').value = m.default_account_id;
+  // Update first split row
+  const firstBucket = document.querySelector('select[name="bucket_id"]');
+  const firstCat    = document.querySelector('select[name="category_id"]');
+  if (firstBucket && m.default_bucket_id) firstBucket.value = m.default_bucket_id;
+  if (firstCat    && m.default_category_id) firstCat.value  = m.default_category_id;
 }
 
 document.addEventListener('click', e => { if (!input.contains(e.target)) box.innerHTML = ''; });
+
+// When total amount changes, update single-row amount
+document.getElementById('total-amount').addEventListener('input', updateTotal);
 </script>
 {% endblock %}
